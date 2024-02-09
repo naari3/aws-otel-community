@@ -14,6 +14,7 @@ type Config struct {
 	ThreadsActiveUpperBound int64    `mapstructure:"RandomThreadsActiveUpperBound"`
 	CpuUsageUpperBound      int64    `mapstructure:"RandomCpuUsageUpperBound"`
 	SampleAppPorts          []string `mapstructure:"SampleAppPorts"`
+	ServiceName             string   `mapstructure:"ServiceName"`
 }
 
 // GetConfiguration returns a configured Config struct with the precedence; Default Values < Configuration File.
@@ -27,9 +28,9 @@ func GetConfiguration() *Config {
 	viper.SetDefault("RandomThreadsActiveUpperBound", 10)
 	viper.SetDefault("RandomCpuUsageUpperBound", 100)
 	viper.SetDefault("SampleAppPorts", arr)
+	viper.SetDefault("ServiceName", "go-sample-app")
 
-	viper.SetConfigFile("config.yaml")
-	viper.ReadInConfig()
+	viper.AutomaticEnv()
 
 	cfg := &Config{}
 	viper.Unmarshal(cfg)

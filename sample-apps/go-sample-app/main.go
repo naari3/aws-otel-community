@@ -66,7 +66,20 @@ func main() {
 	})
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		html := `
+		<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta charset="UTF-8">
+			<title>Test Page</title>
+		</head>
+		<body>
+			<p><a href="/aws-sdk-call">/aws-sdk-call</a>: make an AWS SDK call</p>
+			<p><a href="/outgoing-http-call">/outgoing-http-call</a>: make an outgoing HTTP call</p>
+			<p><a href="/outgoing-sampleapp">/outgoing-sampleapp</a>: make an outgoing call to another sample app</p>
+		</body>
+		</html>`
+		fmt.Fprint(w, html)
 	})
 	// Root endpoint
 	http.Handle("/", r)

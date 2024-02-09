@@ -64,7 +64,7 @@ func StartClient(ctx context.Context) (func(context.Context) error, error) {
 	}
 	res := resource.NewWithAttributes(
 		semconv.SchemaURL,
-		semconv.ServiceName("go-sample-app"),
+		semconv.ServiceName(cfg.ServiceName),
 	)
 	if _, present := os.LookupEnv("OTEL_RESOURCE_ATTRIBUTES"); present {
 		envResource, err := resource.New(ctx, resource.WithFromEnv())
@@ -92,7 +92,7 @@ func StartClient(ctx context.Context) (func(context.Context) error, error) {
 		metric.Stream{Aggregation: aggregation.ExplicitBucketHistogram{
 			Boundaries: []float64{100, 300, 500},
 		}},
-	)),)
+	)))
 
 	otel.SetMeterProvider(meterProvider)
 
