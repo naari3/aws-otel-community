@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -138,6 +139,44 @@ func OutgoingHttpCall(w http.ResponseWriter, r *http.Request, client http.Client
 	)
 
 	defer span.End()
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", "https://aws.amazon.com/", nil)
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	defer res.Body.Close()
+
+	// Request based metrics provided by rqmc
+	rqmc.AddApiRequest()
+	rqmc.UpdateTotalBytesSent(ctx)
+	rqmc.UpdateLatencyTime(ctx)
+	writeResponse(span, w)
+
+}
+
+// OutgoingPsqlCall makes a SQL request to a database and generates an Xray Trace ID.
+func OutgoingPsqlCall(w http.ResponseWriter, r *http.Request, client http.Client, rqmc *requestBasedMetricCollector, conn *sqlx.DB) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	ctx, span := tracer.Start(
+		r.Context(),
+		"outgoing-psql-call",
+		trace.WithAttributes(traceCommonLabels...),
+	)
+
+	defer span.End()
+
+	for i := 0; i < 10; i++ {
+		row := conn.QueryRowContext(ctx, "SELECT 1")
+		var result int
+		err := row.Scan(&result)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
 
 	req, _ := http.NewRequestWithContext(ctx, "GET", "https://aws.amazon.com/", nil)
 	res, err := client.Do(req)

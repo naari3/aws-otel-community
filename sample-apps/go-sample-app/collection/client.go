@@ -10,7 +10,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -89,7 +88,7 @@ func StartClient(ctx context.Context) (func(context.Context) error, error) {
 	}
 	meterProvider := metric.NewMeterProvider(metric.WithResource(res), metric.WithReader(metric.NewPeriodicReader(exp)), metric.WithView(metric.NewView(
 		metric.Instrument{Name: "mp_histogram"},
-		metric.Stream{Aggregation: aggregation.ExplicitBucketHistogram{
+		metric.Stream{Aggregation: metric.AggregationExplicitBucketHistogram{
 			Boundaries: []float64{100, 300, 500},
 		}},
 	)))

@@ -7,10 +7,15 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
+	_ "github.com/lib/pq"
+
+	"github.com/XSAM/otelsql"
 	"github.com/aws-otel-commnunity/sample-apps/go-sample-app/collection"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
@@ -44,6 +49,24 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		os.Getenv("POSTGRES_HOST"),
+		os.Getenv("POSTGRES_PORT"),
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_DB"),
+	)
+	db, err := otelsql.Open("postgres", dsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	conn := sqlx.NewDb(db, "postgres")
+	if err := conn.Ping(); err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
 	// Creates a router, client and web server with several endpoints
 	r := mux.NewRouter()
 	client := http.Client{
@@ -65,6 +88,10 @@ func main() {
 		collection.OutgoingSampleApp(w, r, client, &rqmc)
 	})
 
+	r.HandleFunc("/outgoing-psql-call", func(w http.ResponseWriter, r *http.Request) {
+		collection.OutgoingPsqlCall(w, r, client, &rqmc, conn)
+	})
+
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		html := `
 		<!DOCTYPE html>
@@ -77,6 +104,7 @@ func main() {
 			<p><a href="/aws-sdk-call">/aws-sdk-call</a>: make an AWS SDK call</p>
 			<p><a href="/outgoing-http-call">/outgoing-http-call</a>: make an outgoing HTTP call</p>
 			<p><a href="/outgoing-sampleapp">/outgoing-sampleapp</a>: make an outgoing call to another sample app</p>
+			<p><a href="/outgoing-psql-call">/outgoing-psql-call</a>: make an outgoing call to a Postgres database</p>
 		</body>
 		</html>`
 		fmt.Fprint(w, html)
