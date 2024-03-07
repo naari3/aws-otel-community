@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"math/rand"
 	"net"
 	"net/http"
@@ -20,6 +21,21 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 )
+
+var logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+func LoggerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+		go func() {
+			l := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+				AddSource: true,
+				Level:     slog.LevelInfo,
+			}))
+			l.InfoContext(r.Context(), "request", "method", r.Method, "path", r.URL.Path)
+		}()
+	})
+}
 
 // This sample application is in conformance with the ADOT SampleApp requirements spec.
 func main() {
@@ -47,7 +63,7 @@ func main() {
 
 	s3Client, err := collection.NewS3Client()
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Error creating S3 client", "error", err)
 	}
 
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -113,9 +129,10 @@ func main() {
 	http.Handle("/", r)
 
 	srv := &http.Server{
-		Addr: net.JoinHostPort(cfg.Host, cfg.Port),
+		Addr:    net.JoinHostPort(cfg.Host, cfg.Port),
+		Handler: LoggerMiddleware(r),
 	}
-	fmt.Println("Listening on port:", srv.Addr)
+	logger.Info("Listening on port: " + cfg.Port)
 	log.Fatal(srv.ListenAndServe())
 
 }

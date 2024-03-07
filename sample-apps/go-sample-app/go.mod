@@ -1,6 +1,6 @@
 module github.com/aws-otel-commnunity/sample-apps/go-sample-app
 
-go 1.20
+go 1.21
 
 require (
 	github.com/XSAM/otelsql v0.28.0

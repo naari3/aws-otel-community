@@ -2,7 +2,6 @@ package collection
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"sync/atomic"
 
@@ -49,7 +48,7 @@ func (rqmc *requestBasedMetricCollector) registerTotalBytesSent() {
 		metric.WithUnit("By"),
 	)
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Error registering TotalBytesSent metric", err)
 	}
 	rqmc.totalBytesSent = totalBytesSentMetric
 }
@@ -62,7 +61,7 @@ func (rqmc *requestBasedMetricCollector) registerTotalRequests() {
 		metric.WithUnit("1"),
 	)
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Error registering TotalApiRequests metric", err)
 	}
 	rqmc.totalApiRequests = totalApiRequestsMetric
 }
@@ -75,7 +74,7 @@ func (rqmc *requestBasedMetricCollector) registerLatencyTime() {
 		metric.WithUnit("ms"),
 	)
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Error registering LatencyTime metric", err)
 	}
 	rqmc.latencyTime = latencyTimeMetric
 }

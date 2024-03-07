@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
+	"os"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/trace"
 )
+
+var logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 // Contains all of the endpoint logic.
 
@@ -76,7 +80,7 @@ func OutgoingSampleApp(w http.ResponseWriter, r *http.Request, client http.Clien
 		req, _ := http.NewRequestWithContext(ctx, "GET", "https://aws.amazon.com", nil)
 		res, err := client.Do(req)
 		if err != nil {
-			fmt.Println(err)
+			logger.Error("Error making request to amazon.com", "error", err)
 		}
 
 		defer res.Body.Close()
@@ -114,12 +118,11 @@ func invoke(ctx context.Context, port string, client http.Client) {
 	)
 	// Consider making requests on other than localhost
 	addr := "http://" + net.JoinHostPort("0.0.0.0", port) + "/outgoing-sampleapp"
-	fmt.Println(addr)
 	req, _ := http.NewRequestWithContext(ctx, "GET", addr, nil)
 	res, err := client.Do(req)
 
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Error making request to amazon.com", "error", err)
 	}
 
 	defer res.Body.Close()
@@ -143,7 +146,7 @@ func OutgoingHttpCall(w http.ResponseWriter, r *http.Request, client http.Client
 	req, _ := http.NewRequestWithContext(ctx, "GET", "https://aws.amazon.com/", nil)
 	res, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Error making request to amazon.com", "error", err)
 	}
 
 	defer res.Body.Close()
@@ -174,14 +177,14 @@ func OutgoingPsqlCall(w http.ResponseWriter, r *http.Request, client http.Client
 		var result int
 		err := row.Scan(&result)
 		if err != nil {
-			fmt.Println(err)
+			logger.Error("Error making request to amazon.com", "error", err)
 		}
 	}
 
 	req, _ := http.NewRequestWithContext(ctx, "GET", "https://aws.amazon.com/", nil)
 	res, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Error making request to amazon.com", "error", err)
 	}
 
 	defer res.Body.Close()
