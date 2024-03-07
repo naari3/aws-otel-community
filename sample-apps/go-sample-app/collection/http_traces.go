@@ -7,15 +7,13 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/trace"
 )
-
-var logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 // Contains all of the endpoint logic.
 
@@ -80,7 +78,7 @@ func OutgoingSampleApp(w http.ResponseWriter, r *http.Request, client http.Clien
 		req, _ := http.NewRequestWithContext(ctx, "GET", "https://aws.amazon.com", nil)
 		res, err := client.Do(req)
 		if err != nil {
-			logger.Error("Error making request to amazon.com", "error", err)
+			slog.ErrorContext(ctx, "Error making request to amazon.com", "error", err)
 		}
 
 		defer res.Body.Close()
@@ -119,10 +117,11 @@ func invoke(ctx context.Context, port string, client http.Client) {
 	// Consider making requests on other than localhost
 	addr := "http://" + net.JoinHostPort("0.0.0.0", port) + "/outgoing-sampleapp"
 	req, _ := http.NewRequestWithContext(ctx, "GET", addr, nil)
+	slog.InfoContext(ctx, "Making request to sample app on port "+port)
 	res, err := client.Do(req)
 
 	if err != nil {
-		logger.Error("Error making request to amazon.com", "error", err)
+		slog.ErrorContext(ctx, "Error making request to amazon.com", "error", err)
 	}
 
 	defer res.Body.Close()
@@ -143,10 +142,11 @@ func OutgoingHttpCall(w http.ResponseWriter, r *http.Request, client http.Client
 
 	defer span.End()
 
+	slog.InfoContext(ctx, "Making request to aws.amazon.com")
 	req, _ := http.NewRequestWithContext(ctx, "GET", "https://aws.amazon.com/", nil)
 	res, err := client.Do(req)
 	if err != nil {
-		logger.Error("Error making request to amazon.com", "error", err)
+		slog.ErrorContext(ctx, "Error making request to amazon.com", "error", err)
 	}
 
 	defer res.Body.Close()
@@ -173,18 +173,19 @@ func OutgoingPsqlCall(w http.ResponseWriter, r *http.Request, client http.Client
 	defer span.End()
 
 	for i := 0; i < 10; i++ {
+		slog.InfoContext(ctx, "Making SQL request to database "+strconv.Itoa(i))
 		row := conn.QueryRowContext(ctx, "SELECT 1")
 		var result int
 		err := row.Scan(&result)
 		if err != nil {
-			logger.Error("Error making request to amazon.com", "error", err)
+			slog.ErrorContext(ctx, "Error making request to amazon.com", "error", err)
 		}
 	}
 
 	req, _ := http.NewRequestWithContext(ctx, "GET", "https://aws.amazon.com/", nil)
 	res, err := client.Do(req)
 	if err != nil {
-		logger.Error("Error making request to amazon.com", "error", err)
+		slog.ErrorContext(ctx, "Error making request to amazon.com", "error", err)
 	}
 
 	defer res.Body.Close()

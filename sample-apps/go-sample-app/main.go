@@ -32,18 +32,20 @@ type LogHandler struct {
 	slog.Handler
 }
 
-func NewLogHandler(s slog.Handler) LogHandler {
-	return LogHandler{
+func NewLogHandler(s slog.Handler) *LogHandler {
+	return &LogHandler{
 		Handler: s,
 	}
 }
 
-func (h LogHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
 	sc := trace.SpanContextFromContext(ctx)
 	if sc.IsValid() {
 		r.AddAttrs(
-			slog.String("trace", sc.TraceID().String()),
-			slog.String("span_id", sc.SpanID().String()),
+			slog.Any("trace_id", sc.TraceID().String()),
+		)
+		r.AddAttrs(
+			slog.Any("span_id", sc.SpanID().String()),
 		)
 	}
 	return h.Handler.Handle(ctx, r)
@@ -59,12 +61,7 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		duration := time.Since(start)
 
 		go func() {
-			l := slog.New(NewLogHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-				AddSource: true,
-				Level:     slog.LevelInfo,
-			})))
-			// todo: add date
-			l.InfoContext(r.Context(), "request", "method", r.Method, "path", r.URL.Path, "status", wrappedWriter.status, "duration", duration.String(), "datetime", time.Now().Format(time.RFC3339))
+			slog.InfoContext(r.Context(), "request", "method", r.Method, "path", r.URL.Path, "status", wrappedWriter.status, "duration", duration.String(), "datetime", time.Now().Format(time.RFC3339))
 		}()
 	})
 }
@@ -84,6 +81,18 @@ func wrapResponseWriter(w http.ResponseWriter) *responseWriter {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.status = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+func setuplogger() {
+	l := slog.New(NewLogHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelInfo,
+	})))
+	slog.SetDefault(l)
+}
+
+func init() {
+	setuplogger()
 }
 
 // This sample application is in conformance with the ADOT SampleApp requirements spec.

@@ -2,6 +2,7 @@ package collection
 
 import (
 	"context"
+	"log/slog"
 	"math/rand"
 	"time"
 
@@ -42,7 +43,7 @@ func (rmc *randomMetricCollector) registerTimeAlive() {
 		metric.WithUnit("ms"),
 	)
 	if err != nil {
-		logger.Error("Error registering TimeAlive metric", err)
+		slog.Error("Error registering TimeAlive metric", err)
 	}
 	rmc.timeAlive = timeAliveMetric
 }
@@ -55,7 +56,7 @@ func (rmc *randomMetricCollector) registerCpuUsage() {
 		metric.WithUnit("1"),
 	)
 	if err != nil {
-		logger.Error("Error registering CpuUsage metric", err)
+		slog.Error("Error registering CpuUsage metric", err)
 	}
 	rmc.cpuUsage = cpuUsageMetric
 
@@ -69,7 +70,7 @@ func (rmc *randomMetricCollector) registerHeapSize() {
 		metric.WithUnit("By"),
 	)
 	if err != nil {
-		logger.Error("Error registering HeapSize metric", err)
+		slog.Error("Error registering HeapSize metric", err)
 	}
 	rmc.totalHeapSize = totalHeapSizeMetric
 
@@ -83,7 +84,7 @@ func (rmc *randomMetricCollector) registerThreadsActive() {
 		metric.WithDescription("The total amount of threads active"),
 	)
 	if err != nil {
-		logger.Error("Error registering ThreadsActive metric", err)
+		slog.Error("Error registering ThreadsActive metric", err)
 	}
 	rmc.threadsActive = threadsActiveMetric
 }
