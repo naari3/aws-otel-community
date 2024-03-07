@@ -2,7 +2,7 @@ FROM alpine:latest AS certs
 
 RUN apk update && apk add ca-certificates
 
-FROM golang:1.20 AS build
+FROM golang:1.21 AS build
 
 WORKDIR /app
 COPY go.mod .

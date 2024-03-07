@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	_ "github.com/lib/pq"
 
 	"github.com/XSAM/otelsql"
@@ -20,21 +21,69 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws"
 )
 
 var logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
+type LogHandler struct {
+	slog.Handler
+}
+
+func NewLogHandler(s slog.Handler) LogHandler {
+	return LogHandler{
+		Handler: s,
+	}
+}
+
+func (h LogHandler) Handle(ctx context.Context, r slog.Record) error {
+	sc := trace.SpanContextFromContext(ctx)
+	if sc.IsValid() {
+		r.AddAttrs(
+			slog.String("trace", sc.TraceID().String()),
+			slog.String("span_id", sc.SpanID().String()),
+		)
+	}
+	return h.Handler.Handle(ctx, r)
+
+}
+
 func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r)
+
+		start := time.Now()
+		wrappedWriter := wrapResponseWriter(w)
+		next.ServeHTTP(wrappedWriter, r)
+		duration := time.Since(start)
+
 		go func() {
-			l := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			l := slog.New(NewLogHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 				AddSource: true,
 				Level:     slog.LevelInfo,
-			}))
-			l.InfoContext(r.Context(), "request", "method", r.Method, "path", r.URL.Path)
+			})))
+			// todo: add date
+			l.InfoContext(r.Context(), "request", "method", r.Method, "path", r.URL.Path, "status", wrappedWriter.status, "duration", duration.String(), "datetime", time.Now().Format(time.RFC3339))
 		}()
 	})
+}
+
+// responseWriterをラップする構造体とそのコンストラクタ
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func wrapResponseWriter(w http.ResponseWriter) *responseWriter {
+	// デフォルトのステータスコードは200 OK
+	return &responseWriter{w, http.StatusOK}
+}
+
+// WriteHeaderをオーバーライドしてステータスコードをキャプチャ
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.status = code
+	rw.ResponseWriter.WriteHeader(code)
 }
 
 // This sample application is in conformance with the ADOT SampleApp requirements spec.
@@ -60,6 +109,12 @@ func main() {
 	rmc.RegisterMetricsClient(ctx, *cfg)
 	rqmc := collection.NewRequestBasedMetricCollector(ctx, *cfg, mp)
 	rqmc.StartTotalRequestCallback()
+
+	awsCfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		panic("configuration error, " + err.Error())
+	}
+	otelaws.AppendMiddlewares(&awsCfg.APIOptions)
 
 	s3Client, err := collection.NewS3Client()
 	if err != nil {
